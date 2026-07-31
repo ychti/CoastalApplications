@@ -309,7 +309,7 @@
       flex-wrap: wrap;
     }
 
-    .invite-link-btn {
+    .invite-action-btn {
       border: 1px solid #ccd9ef;
       background: #edf2fb;
       color: #24426b;
@@ -323,7 +323,7 @@
       align-items: center;
     }
 
-    .invite-link-btn:hover {
+    .invite-action-btn:hover {
       background: #e4ecfb;
     }
 
@@ -877,7 +877,7 @@
                 <input id="coApplicantInviteInput" type="email" placeholder="name@email.com">
                 <button id="addCoApplicantInviteBtn" type="button" class="btn-secondary">Add invite</button>
               </div>
-              <div id="coApplicantInviteRequirement" class="hint">When you add an email, an invite will be sent so they can complete their own linked application.</div>
+              <div id="coApplicantInviteRequirement" class="hint">When you add an email, an invite will be sent so they can complete their own shared application.</div>
               <ul id="coApplicantInviteList" class="invite-list"></ul>
               <input id="applicationGroupId" name="applicationGroupId" type="hidden">
               <textarea id="coApplicantEmails" name="coApplicantEmails" style="display:none;"></textarea>
@@ -974,10 +974,10 @@
     const TOTAL_STEPS = 8;
     const DRAFT_KEY = "applicationWorkflowDraftV1";
     // Configure these before using live invite/submission delivery.
-    const SUPPORT_INBOX_EMAIL = "replace-with-inbox@example.com";
-    const SUBMISSION_ENDPOINT = "https://replace-with-your-endpoint.example/submit";
-    const INVITE_ENDPOINT = "https://replace-with-your-endpoint.example/invite";
-    const PDF_LIB_SCRIPT_URL = "/vendor/pdf-lib.min.js";
+    const SUPPORT_INBOX_EMAIL = "REPLACE_SUPPORT_INBOX_EMAIL";
+    const SUBMISSION_ENDPOINT = "REPLACE_SUBMISSION_ENDPOINT";
+    const INVITE_ENDPOINT = "REPLACE_INVITE_ENDPOINT";
+    const PDF_LIB_SCRIPT_URL = "REPLACE_PDF_LIB_SCRIPT_PATH";
     const panels = Array.from(document.querySelectorAll(".step-panel"));
     const stepChips = Array.from(document.querySelectorAll("#stepChips li"));
     const stepLabel = document.getElementById("stepLabel");
@@ -1137,9 +1137,7 @@
 
     function ensureApplicationGroupId() {
       if (!applicationGroupIdInput.value) {
-        const params = new URLSearchParams(window.location.search);
-        const linkedGroupId = params.get("groupId");
-        applicationGroupIdInput.value = linkedGroupId ? linkedGroupId : generateApplicationGroupId();
+        applicationGroupIdInput.value = generateApplicationGroupId();
       }
     }
 
@@ -1150,11 +1148,8 @@
       }
       return Math.max(adults - 1, 0);
     }
-    function buildInviteLink(email) {
-      const inviteUrl = new URL(window.location.origin + window.location.pathname);
-      inviteUrl.searchParams.set("groupId", applicationGroupIdInput.value);
-      inviteUrl.searchParams.set("coApplicantEmail", email);
-      return inviteUrl.toString();
+    function buildInviteReference(email) {
+      return "group=" + applicationGroupIdInput.value + "|email=" + email;
     }
 
     function getInviteStatusLabel(email) {
@@ -1216,9 +1211,9 @@
         invite_reply_to: applicantEmail === "Not provided" ? SUPPORT_INBOX_EMAIL : applicantEmail,
         inviter_name: inviterName,
         primary_applicant_email: applicantEmail,
-        linked_application_group: applicationGroupIdInput.value,
-        invite_link: buildInviteLink(email),
-        message: "You have been invited to complete your own linked application. Open the invite link and submit your details."
+        application_group_reference: applicationGroupIdInput.value,
+        invite_reference: buildInviteReference(email),
+        message: "You have been invited to complete your own shared application. Use the invite reference token to continue."
       };
 
       try {
@@ -1253,22 +1248,6 @@
       renderCoApplicantInviteList();
     }
 
-    async function copyInviteLink(email) {
-      const inviteLink = buildInviteLink(email);
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(inviteLink);
-          clearNotices();
-          successNotice.textContent = "Invite link copied for " + email;
-          successNotice.style.display = "block";
-          return;
-        }
-      } catch (error) {
-        // Fallback below.
-      }
-      window.prompt("Copy this invite link:", inviteLink);
-    }
-
     function renderCoApplicantInviteList() {
       coApplicantInviteList.innerHTML = "";
       coApplicantEmails.forEach(email => {
@@ -1285,17 +1264,9 @@
         const actions = document.createElement("div");
         actions.className = "invite-item-actions";
 
-        const copyBtn = document.createElement("button");
-        copyBtn.type = "button";
-        copyBtn.className = "invite-link-btn";
-        copyBtn.textContent = "Copy link";
-        copyBtn.addEventListener("click", () => {
-          copyInviteLink(email);
-        });
-
         const resendBtn = document.createElement("button");
         resendBtn.type = "button";
-        resendBtn.className = "invite-link-btn";
+        resendBtn.className = "invite-action-btn";
         resendBtn.textContent = "Send invite";
         resendBtn.disabled = coApplicantInviteStatus.get(email) === "sending";
         resendBtn.addEventListener("click", () => {
@@ -1304,13 +1275,12 @@
 
         const removeBtn = document.createElement("button");
         removeBtn.type = "button";
-        removeBtn.className = "invite-link-btn";
+        removeBtn.className = "invite-action-btn";
         removeBtn.textContent = "Remove";
         removeBtn.addEventListener("click", () => {
           removeCoApplicantEmail(email);
         });
 
-        actions.appendChild(copyBtn);
         actions.appendChild(resendBtn);
         actions.appendChild(removeBtn);
         item.appendChild(label);
@@ -1482,7 +1452,7 @@
             ["Adult occupants", safeValue(payload.adultApplicants)],
             ["Dependants", safeValue(payload.dependants)],
             ["Preferred move-in date", formatDateForEmail(payload.householdMoveInDate)],
-            ["Linked application group", safeValue(payload.applicationGroupId)],
+            ["Application group", safeValue(payload.applicationGroupId)],
             ["Co-applicant invite emails", safeValue(payload.coApplicantEmails)],
             ["Has pets", safeValue(payload.hasPets)]
           ]
@@ -1838,7 +1808,7 @@
             "Adult Occupants: " + escapeEmailText(payload.adultApplicants),
             "Dependants: " + escapeEmailText(payload.dependants),
             "Preferred Move-In Date: " + formatDateForEmail(payload.householdMoveInDate),
-            "Linked Application Group: " + escapeEmailText(payload.applicationGroupId),
+            "Application Group: " + escapeEmailText(payload.applicationGroupId),
             "Co-Applicant Invite Emails: " + escapeEmailText(payload.coApplicantEmails),
             "Has Pets: " + escapeEmailText(payload.hasPets)
           ].join("\n")
@@ -1865,16 +1835,16 @@
       ];
     }
     function endpointConfigured(endpoint) {
-      const value = String(endpoint || "").trim().toLowerCase();
-      return Boolean(value) && !value.includes("replace-with-your-endpoint.example");
+      const value = String(endpoint || "").trim();
+      return Boolean(value) && !value.startsWith("REPLACE_");
     }
 
     function receiverEmailConfigured() {
-      const receiver = String(SUPPORT_INBOX_EMAIL || "").trim().toLowerCase();
+      const receiver = String(SUPPORT_INBOX_EMAIL || "").trim();
       if (!receiver) {
         return false;
       }
-      if (receiver.includes("replace-with-inbox@example.com")) {
+      if (receiver.startsWith("REPLACE_")) {
         return false;
       }
       return true;
@@ -1920,10 +1890,8 @@
     }
     function configureEmailSubmissionFields(payload) {
       const subjectName = [payload.firstName, payload.lastName].filter(Boolean).join(" ").trim() || "Applicant";
-      const nextUrl = window.location.origin + window.location.pathname + "?submitted=1";
       upsertHiddenInput("submission_subject", "New Application - " + subjectName);
       upsertHiddenInput("submission_reply_to", payload.email || SUPPORT_INBOX_EMAIL);
-      upsertHiddenInput("submission_return_url", nextUrl);
       prepareOrderedSubmissionFields(payload);
       form.setAttribute("action", SUBMISSION_ENDPOINT);
       form.setAttribute("method", "POST");
@@ -1931,17 +1899,7 @@
     }
 
     function showReturnedSubmissionNoticeIfAny() {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("submitted") === "1") {
-        clearNotices();
-        successNotice.textContent = "Application submitted successfully.";
-        successNotice.style.display = "block";
-        params.delete("submitted");
-        const cleanUrl = params.toString()
-          ? window.location.pathname + "?" + params.toString()
-          : window.location.pathname;
-        window.history.replaceState({}, "", cleanUrl);
-      }
+      // Intentionally disabled in ghost handoff mode (no URL/query state).
     }
 
     function hasFile(inputId) {
@@ -2291,21 +2249,6 @@
 
     showStep(0);
     loadDraft();
-    const inviteParams = new URLSearchParams(window.location.search);
-    const invitedEmail = normalizeEmail(inviteParams.get("coApplicantEmail"));
-    const linkedGroupId = inviteParams.get("groupId");
-    if (linkedGroupId && !applicationGroupIdInput.value) {
-      applicationGroupIdInput.value = linkedGroupId;
-    }
-    if (invitedEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invitedEmail)) {
-      coApplicantInviteInput.value = invitedEmail;
-      if (!form.elements.email.value) {
-        form.elements.email.value = invitedEmail;
-      }
-      clearNotices();
-      successNotice.textContent = "You are completing a linked application. Fill all sections and submit your own application.";
-      successNotice.style.display = "block";
-    }
     updateIdentityPointsUI();
     showReturnedSubmissionNoticeIfAny();
   </script>
