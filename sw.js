@@ -1,4 +1,4 @@
-const CACHE = "rental-app-v1";
+const CACHE = "application-portal-v1";
 const PRECACHE = [
   "/",
   "/index.html",

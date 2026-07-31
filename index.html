@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trusted Tenant Application</title>
+  <title>Application Workflow Portal</title>
   <style>
     :root {
       --bg: #eef3fb;
@@ -566,19 +566,19 @@
     <section class="brand-strip">
       <div class="brand-row">
         <div class="brand">
-          <div class="brand-logo">HR</div>
+          <div class="brand-logo">AP</div>
           <div>
-            <h1>Rental Applications Portal</h1>
-            <p>Secure digital tenancy screening and application workflow</p>
+            <h1>Application Portal</h1>
+            <p>Portable multi-step application workflow template</p>
           </div>
         </div>
         <div class="brand-meta">
-          <span class="chip">Encrypted upload portal</span>
-          <span class="chip">100-point ID verification</span>
-          <span class="chip">Professional reference checks</span>
+          <span class="chip">Secure form workflow</span>
+          <span class="chip">Document collection</span>
+          <span class="chip">Portable starter template</span>
         </div>
       </div>
-      <p class="hero-note">Complete each section in order. Save draft is available on this device, and identity documents are verified before final submission.</p>
+      <p class="hero-note">Complete each section in order. Save draft is available on this device, and submission wiring can be configured for your own backend.</p>
     </section>
 
     <div class="card">
@@ -603,10 +603,6 @@
       </div>
 
       <form id="applicationForm" novalidate>
-        <div id="leadContextNotice" class="notice info"></div>
-        <input id="leadSource" name="leadSource" type="hidden">
-        <input id="leadListingAddress" name="leadListingAddress" type="hidden">
-        <input id="leadListingId" name="leadListingId" type="hidden">
 
         <section class="step-panel active" data-step="0">
           <h2 class="step-title">Applicant details</h2>
@@ -976,10 +972,12 @@
 
   <script>
     const TOTAL_STEPS = 8;
-    const DRAFT_KEY = "tenantApplicationDraftV2";
-    // Set this to the inbox that should receive applications.
-    const APPLICATION_RECEIVER_EMAIL = "applications@your-domain.example";
-    const EMAIL_PROVIDER_ENDPOINT = "https://formsubmit.co/" + APPLICATION_RECEIVER_EMAIL;
+    const DRAFT_KEY = "applicationWorkflowDraftV1";
+    // Configure these before using live invite/submission delivery.
+    const SUPPORT_INBOX_EMAIL = "replace-with-inbox@example.com";
+    const SUBMISSION_ENDPOINT = "https://replace-with-your-endpoint.example/submit";
+    const INVITE_ENDPOINT = "https://replace-with-your-endpoint.example/invite";
+    const PDF_LIB_SCRIPT_URL = "/vendor/pdf-lib.min.js";
     const panels = Array.from(document.querySelectorAll(".step-panel"));
     const stepChips = Array.from(document.querySelectorAll("#stepChips li"));
     const stepLabel = document.getElementById("stepLabel");
@@ -992,12 +990,8 @@
     const form = document.getElementById("applicationForm");
     const successNotice = document.getElementById("successNotice");
     const errorNotice = document.getElementById("errorNotice");
-    const leadContextNotice = document.getElementById("leadContextNotice");
     const reviewContainer = document.getElementById("reviewContainer");
     const docInputs = Array.from(document.querySelectorAll("[data-doc-input]"));
-    const leadSourceInput = document.getElementById("leadSource");
-    const leadListingAddressInput = document.getElementById("leadListingAddress");
-    const leadListingIdInput = document.getElementById("leadListingId");
     const applicationGroupIdInput = document.getElementById("applicationGroupId");
     const adultApplicantsInput = document.getElementById("adultApplicants");
     const dependantsInput = document.getElementById("dependants");
@@ -1051,14 +1045,6 @@
           ["Email", "email"],
           ["Phone", "phone"],
           ["Address", "currentAddress"]
-        ]
-      },
-      {
-        title: "Lead context",
-        fields: [
-          ["Lead source", "leadSource"],
-          ["Listing address", "leadListingAddress"],
-          ["Listing ID", "leadListingId"]
         ]
       },
       {
@@ -1142,93 +1128,11 @@
     function normalizeEmail(email) {
       return String(email || "").trim().toLowerCase();
     }
-
-    function readFirstQueryValue(params, keys) {
-      for (const key of keys) {
-        const value = String(params.get(key) || "").trim();
-        if (value) {
-          return value;
-        }
-      }
-      return "";
-    }
-
-    function setFieldIfEmpty(fieldName, nextValue) {
-      const value = String(nextValue || "").trim();
-      if (!value) {
-        return false;
-      }
-      const field = form.elements.namedItem(fieldName);
-      if (!field || !("value" in field)) {
-        return false;
-      }
-      if (String(field.value || "").trim()) {
-        return false;
-      }
-      field.value = value;
-      return true;
-    }
-
-    function applyEnquiryPrefillFromUrl() {
-      const params = new URLSearchParams(window.location.search);
-      const source = readFirstQueryValue(params, ["source", "portal", "leadSource"]);
-      const listingAddress = readFirstQueryValue(params, ["listingAddress", "property", "address", "listing"]);
-      const listingId = readFirstQueryValue(params, ["listingId", "listing_id", "reaListingId", "propertyId"]);
-
-      const firstName = readFirstQueryValue(params, ["firstName", "first_name", "givenName", "given_name"]);
-      const lastName = readFirstQueryValue(params, ["lastName", "last_name", "surname", "familyName", "family_name"]);
-      const email = normalizeEmail(readFirstQueryValue(params, ["email", "leadEmail", "enquiryEmail", "lead_email"]));
-      const phone = readFirstQueryValue(params, ["phone", "mobile", "phoneNumber", "phone_number"]);
-      const prefilled = [];
-
-      if (setFieldIfEmpty("firstName", firstName)) {
-        prefilled.push("first name");
-      }
-      if (setFieldIfEmpty("lastName", lastName)) {
-        prefilled.push("last name");
-      }
-      if (setFieldIfEmpty("email", email)) {
-        prefilled.push("email");
-      }
-      if (setFieldIfEmpty("phone", phone)) {
-        prefilled.push("phone");
-      }
-
-      if (source) {
-        leadSourceInput.value = source;
-      }
-      if (listingAddress) {
-        leadListingAddressInput.value = listingAddress;
-      }
-      if (listingId) {
-        leadListingIdInput.value = listingId;
-      }
-
-      const contextParts = [];
-      if (source) {
-        contextParts.push("Source: " + source);
-      }
-      if (listingAddress) {
-        contextParts.push("Property: " + listingAddress);
-      }
-      if (listingId) {
-        contextParts.push("Listing ID: " + listingId);
-      }
-      if (prefilled.length) {
-        contextParts.push("Prefilled from enquiry: " + prefilled.join(", "));
-      }
-
-      if (contextParts.length > 0) {
-        leadContextNotice.textContent = contextParts.join(" | ");
-        leadContextNotice.style.display = "block";
-      }
-    }
-
     function generateApplicationGroupId() {
       const now = new Date();
       const datePart = String(now.getFullYear()).slice(-2) + String(now.getMonth() + 1).padStart(2, "0") + String(now.getDate()).padStart(2, "0");
       const randomPart = Math.random().toString(36).slice(2, 7).toUpperCase();
-      return "QH-" + datePart + "-" + randomPart;
+      return "GRP-" + datePart + "-" + randomPart;
     }
 
     function ensureApplicationGroupId() {
@@ -1246,20 +1150,10 @@
       }
       return Math.max(adults - 1, 0);
     }
-
     function buildInviteLink(email) {
       const inviteUrl = new URL(window.location.origin + window.location.pathname);
       inviteUrl.searchParams.set("groupId", applicationGroupIdInput.value);
       inviteUrl.searchParams.set("coApplicantEmail", email);
-      if (leadSourceInput.value) {
-        inviteUrl.searchParams.set("source", leadSourceInput.value);
-      }
-      if (leadListingAddressInput.value) {
-        inviteUrl.searchParams.set("listingAddress", leadListingAddressInput.value);
-      }
-      if (leadListingIdInput.value) {
-        inviteUrl.searchParams.set("listingId", leadListingIdInput.value);
-      }
       return inviteUrl.toString();
     }
 
@@ -1288,7 +1182,7 @@
       }
       const inviteForm = document.createElement("form");
       inviteForm.method = "POST";
-      inviteForm.action = "https://flowform.to/submit";
+      inviteForm.action = INVITE_ENDPOINT;
       inviteForm.target = "coApplicantInviteTransportFrame";
       inviteForm.style.display = "none";
       Object.entries(fields).forEach(([name, value]) => {
@@ -1307,12 +1201,19 @@
       coApplicantInviteStatus.set(email, "sending");
       renderCoApplicantInviteList();
 
+      if (!endpointConfigured(INVITE_ENDPOINT)) {
+        coApplicantInviteStatus.set(email, "failed");
+        renderCoApplicantInviteList();
+        showError("Configure INVITE_ENDPOINT in index.html before sending invites.");
+        return;
+      }
+
       const inviterName = [form.elements.firstName.value, form.elements.lastName.value].filter(Boolean).join(" ").trim() || "Primary Applicant";
       const applicantEmail = safeValue(form.elements.email.value);
       const payload = {
-        _to: email,
-        _subject: "You are invited to complete a rental application",
-        _replyto: applicantEmail === "Not provided" ? APPLICATION_RECEIVER_EMAIL : applicantEmail,
+        invite_to_email: email,
+        invite_subject: "You are invited to complete an application",
+        invite_reply_to: applicantEmail === "Not provided" ? SUPPORT_INBOX_EMAIL : applicantEmail,
         inviter_name: inviterName,
         primary_applicant_email: applicantEmail,
         linked_application_group: applicationGroupIdInput.value,
@@ -1523,9 +1424,6 @@
             ["Applicant", applicantName],
             ["Email", safeValue(payload.email)],
             ["Phone", safeValue(payload.phone)],
-            ["Lead source", safeValue(payload.leadSource)],
-            ["Listing address", safeValue(payload.leadListingAddress)],
-            ["Listing ID", safeValue(payload.leadListingId)],
             ["Identity score", payload.identityPoints + "/100"]
           ]
         },
@@ -1628,7 +1526,7 @@
       let y = 0;
 
       const drawPageHeader = () => {
-        page.drawText("Tenant Application Packet", { x: margin, y, size: titleSize, font: boldFont });
+        page.drawText("Application Packet", { x: margin, y, size: titleSize, font: boldFont });
         y -= 16;
         page.drawText("Compact summary of applicant details and declarations", {
           x: margin,
@@ -1712,7 +1610,7 @@
           return;
         }
         const script = document.createElement("script");
-        script.src = "https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js";
+        script.src = PDF_LIB_SCRIPT_URL;
         script.async = true;
         script.setAttribute("data-pdf-lib", "true");
         script.onload = resolve;
@@ -1882,9 +1780,6 @@
             "Applicant: " + applicantName,
             "Email: " + escapeEmailText(payload.email),
             "Phone: " + escapeEmailText(payload.phone),
-            "Lead Source: " + escapeEmailText(payload.leadSource),
-            "Listing Address: " + escapeEmailText(payload.leadListingAddress),
-            "Listing ID: " + escapeEmailText(payload.leadListingId),
             "Identity Score: " + payload.identityPoints + "/100"
           ].join("\n")
         },
@@ -1969,16 +1864,17 @@
         }
       ];
     }
+    function endpointConfigured(endpoint) {
+      const value = String(endpoint || "").trim().toLowerCase();
+      return Boolean(value) && !value.includes("replace-with-your-endpoint.example");
+    }
 
     function receiverEmailConfigured() {
-      const receiver = String(APPLICATION_RECEIVER_EMAIL || "").trim().toLowerCase();
+      const receiver = String(SUPPORT_INBOX_EMAIL || "").trim().toLowerCase();
       if (!receiver) {
         return false;
       }
-      if (receiver.includes("your-email@example.com")) {
-        return false;
-      }
-      if (receiver.endsWith("@your-domain.example")) {
+      if (receiver.includes("replace-with-inbox@example.com")) {
         return false;
       }
       return true;
@@ -2005,13 +1901,6 @@
       generated.forEach(item => item.remove());
     }
 
-    function removeHiddenFieldByName(name) {
-      const hidden = form.querySelector('input[type="hidden"][name="' + name + '"]');
-      if (hidden) {
-        hidden.remove();
-      }
-    }
-
     function appendGeneratedSubmitField(name, value) {
       const hidden = document.createElement("input");
       hidden.type = "hidden";
@@ -2029,23 +1918,14 @@
       });
       appendGeneratedSubmitField("Original Applicant Email", safeValue(payload.email));
     }
-
     function configureEmailSubmissionFields(payload) {
       const subjectName = [payload.firstName, payload.lastName].filter(Boolean).join(" ").trim() || "Applicant";
       const nextUrl = window.location.origin + window.location.pathname + "?submitted=1";
-      // Remove fields from previous provider implementations to avoid mixed payloads.
-      removeHiddenFieldByName("_to");
-      removeHiddenFieldByName("subject");
-      removeHiddenFieldByName("reply_to");
-      upsertHiddenInput("_subject", "New Tenant Application - " + subjectName);
-      upsertHiddenInput("_template", "table");
-      upsertHiddenInput("_captcha", "false");
-      upsertHiddenInput("_next", nextUrl);
-      if (payload.email) {
-        upsertHiddenInput("_replyto", payload.email);
-      }
+      upsertHiddenInput("submission_subject", "New Application - " + subjectName);
+      upsertHiddenInput("submission_reply_to", payload.email || SUPPORT_INBOX_EMAIL);
+      upsertHiddenInput("submission_return_url", nextUrl);
       prepareOrderedSubmissionFields(payload);
-      form.setAttribute("action", EMAIL_PROVIDER_ENDPOINT);
+      form.setAttribute("action", SUBMISSION_ENDPOINT);
       form.setAttribute("method", "POST");
       form.setAttribute("enctype", "multipart/form-data");
     }
@@ -2054,7 +1934,7 @@
       const params = new URLSearchParams(window.location.search);
       if (params.get("submitted") === "1") {
         clearNotices();
-        successNotice.textContent = "Application submitted and sent to your office email successfully.";
+        successNotice.textContent = "Application submitted successfully.";
         successNotice.style.display = "block";
         params.delete("submitted");
         const cleanUrl = params.toString()
@@ -2385,8 +2265,8 @@
         return;
       }
 
-      if (!receiverEmailConfigured()) {
-        showError("Set APPLICATION_RECEIVER_EMAIL in index.html before using live email delivery.");
+      if (!receiverEmailConfigured() || !endpointConfigured(SUBMISSION_ENDPOINT)) {
+        showError("Configure SUPPORT_INBOX_EMAIL and SUBMISSION_ENDPOINT in index.html before using live delivery.");
         return;
       }
 
@@ -2395,12 +2275,12 @@
       setSubmitBusy(true);
       try {
         await attachApplicationSummaryPdf(payload);
-        // FormSubmit delivery is most reliable with one attachment payload.
+        // Send a single generated packet attachment for portability.
         setRawDocInputsEnabledForSubmit(false);
         configureEmailSubmissionFields(payload);
         localStorage.removeItem(DRAFT_KEY);
 
-        console.log("Tenant application payload:", payload);
+        console.log("Application payload:", payload);
         form.submit();
       } catch (error) {
         setRawDocInputsEnabledForSubmit(true);
@@ -2411,7 +2291,6 @@
 
     showStep(0);
     loadDraft();
-    applyEnquiryPrefillFromUrl();
     const inviteParams = new URLSearchParams(window.location.search);
     const invitedEmail = normalizeEmail(inviteParams.get("coApplicantEmail"));
     const linkedGroupId = inviteParams.get("groupId");
@@ -2424,7 +2303,7 @@
         form.elements.email.value = invitedEmail;
       }
       clearNotices();
-      successNotice.textContent = "You are completing a linked co-applicant application. Fill all sections and submit your own application.";
+      successNotice.textContent = "You are completing a linked application. Fill all sections and submit your own application.";
       successNotice.style.display = "block";
     }
     updateIdentityPointsUI();

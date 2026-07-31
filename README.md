@@ -1,1 +1,1 @@
-# CoastalApplications
+# Application Portal Template

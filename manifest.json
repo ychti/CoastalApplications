@@ -1,7 +1,7 @@
 {
-  "name": "Rental Application Portal",
-  "short_name": "RentApply",
-  "description": "Secure multi-step rental application portal",
+  "name": "Application Portal",
+  "short_name": "AppPortal",
+  "description": "Portable multi-step application workflow",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
